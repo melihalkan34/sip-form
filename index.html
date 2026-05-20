@@ -1,0 +1,251 @@
+bash
+
+cat > /mnt/user-data/outputs/index.html << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sipariş Formu</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; padding: 20px 16px; }
+  .card { background: #fff; border-radius: 16px; padding: 24px; max-width: 480px; margin: 0 auto; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  h1 { font-size: 20px; font-weight: 600; color: #1a1a1a; margin-bottom: 24px; }
+  .field { margin-bottom: 18px; }
+  label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; font-weight: 500; }
+  input[type=text], input[type=number], textarea {
+    width: 100%; padding: 11px 14px; border: 1px solid #e0e0e0;
+    border-radius: 10px; font-size: 15px; color: #1a1a1a;
+    background: #fafafa; outline: none; transition: border 0.2s;
+  }
+  input:focus, textarea:focus { border-color: #4f46e5; background: #fff; }
+  .search-wrap { position: relative; }
+  .search-wrap input { padding-right: 40px; }
+  .search-icon { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 18px; }
+  .dropdown { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; margin-top: 6px; max-height: 220px; overflow-y: auto; display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .dropdown-item { padding: 11px 14px; font-size: 14px; color: #1a1a1a; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f0f0f0; }
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item:hover { background: #f5f3ff; }
+  .dropdown-item .price { color: #4f46e5; font-size: 13px; font-weight: 600; }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 10px; }
+  .tag { display: inline-flex; align-items: center; gap: 6px; background: #ede9fe; color: #4338ca; border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 500; }
+  .tag button { background: none; border: none; cursor: pointer; color: #7c3aed; font-size: 16px; line-height: 1; padding: 0; }
+  .toplam { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-top: 1px solid #f0f0f0; margin-top: 8px; }
+  .toplam span:first-child { font-size: 14px; color: #666; }
+  .toplam span:last-child { font-size: 18px; font-weight: 700; color: #4f46e5; }
+  .btn { width: 100%; padding: 14px; background: #4f46e5; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 8px; transition: background 0.2s; }
+  .btn:hover { background: #4338ca; }
+  .btn:disabled { background: #a5b4fc; cursor: not-allowed; }
+  .success { text-align: center; padding: 20px 0; }
+  .success-icon { font-size: 56px; margin-bottom: 12px; }
+  .success h2 { font-size: 20px; color: #1a1a1a; margin-bottom: 8px; }
+  .success p { font-size: 14px; color: #666; margin-bottom: 20px; }
+  .ozet { background: #f9f9f9; border-radius: 10px; padding: 14px; text-align: left; font-size: 13px; color: #444; line-height: 1.8; margin-bottom: 20px; }
+  .btn-secondary { width: 100%; padding: 12px; background: transparent; color: #4f46e5; border: 1.5px solid #4f46e5; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .no-result { padding: 12px 14px; font-size: 14px; color: #999; text-align: center; }
+  .yukluyor { text-align: center; padding: 14px; color: #999; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="card" id="form-view">
+  <h1>📋 Sipariş Formu</h1>
+
+  <div class="field">
+    <label>Müşteri adı *</label>
+    <input type="text" id="musteri" placeholder="Ad Soyad" />
+  </div>
+
+  <div class="field">
+    <label>Ürün ara ve seç *</label>
+    <div class="search-wrap">
+      <input type="text" id="urun-ara" placeholder="Ürün adını yazın..." autocomplete="off" />
+      <span class="search-icon">🔍</span>
+    </div>
+    <div class="dropdown" id="dropdown"></div>
+    <div class="tags" id="tags"></div>
+  </div>
+
+  <div class="field">
+    <label>Miktar (adet) *</label>
+    <input type="number" id="miktar" min="1" value="1" />
+  </div>
+
+  <div class="field">
+    <label>Not</label>
+    <textarea id="not" rows="2" placeholder="Varsa ekleyin..."></textarea>
+  </div>
+
+  <div class="toplam" id="toplam-wrap" style="display:none">
+    <span>Tahmini toplam</span>
+    <span id="toplam"></span>
+  </div>
+
+  <button class="btn" id="gonder-btn" onclick="gonder()">Siparişi Gönder →</button>
+</div>
+
+<div class="card" id="success-view" style="display:none">
+  <div class="success">
+    <div class="success-icon">✅</div>
+    <h2>Sipariş alındı!</h2>
+    <p>Veriler kaydedildi, mail yolda.</p>
+    <div class="ozet" id="ozet"></div>
+    <button class="btn-secondary" onclick="yeniSiparis()">Yeni Sipariş Oluştur</button>
+  </div>
+</div>
+
+<script>
+// =============================================
+// ÜRÜN LİSTESİ — kendi ürünlerinizle değiştirin
+// =============================================
+const URUNLER = [
+  { ad: "Ürün Adı 1", fiyat: 100 },
+  { ad: "Ürün Adı 2", fiyat: 250 },
+  { ad: "Ürün Adı 3", fiyat: 75 },
+  // Devamını buraya ekleyin...
+];
+
+// =============================================
+// POWER AUTOMATE WEBHOOK URL — Adım 3'te alacaksınız
+// =============================================
+const WEBHOOK_URL = "BURAYA_POWER_AUTOMATE_URL_GELECEK";
+
+// =============================================
+// Form mantığı — değiştirmenize gerek yok
+// =============================================
+let secilen = [];
+
+const araInput = document.getElementById('urun-ara');
+const dropdown = document.getElementById('dropdown');
+
+araInput.addEventListener('input', function() { araUrun(this.value); });
+araInput.addEventListener('focus', function() { araUrun(this.value); });
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.search-wrap') && !e.target.closest('#dropdown')) {
+    dropdown.style.display = 'none';
+  }
+});
+
+document.getElementById('miktar').addEventListener('input', guncelleToplam);
+
+function araUrun(q) {
+  const fil = URUNLER.filter(u =>
+    u.ad.toLowerCase().includes(q.toLowerCase()) &&
+    !secilen.find(s => s.ad === u.ad)
+  );
+  if (q.length === 0 && fil.length === 0) { dropdown.style.display = 'none'; return; }
+  if (fil.length === 0) {
+    dropdown.innerHTML = '<div class="no-result">Ürün bulunamadı</div>';
+  } else {
+    dropdown.innerHTML = fil.slice(0, 10).map(u =>
+      `<div class="dropdown-item" onclick="secUrun('${u.ad.replace(/'/g,"\\'")}', ${u.fiyat})">
+        <span>${u.ad}</span>
+        <span class="price">${u.fiyat.toLocaleString('tr-TR')} ₺</span>
+      </div>`
+    ).join('');
+  }
+  dropdown.style.display = 'block';
+}
+
+function secUrun(ad, fiyat) {
+  secilen.push({ ad, fiyat });
+  araInput.value = '';
+  dropdown.style.display = 'none';
+  renderTags();
+  guncelleToplam();
+}
+
+function kaldir(i) {
+  secilen.splice(i, 1);
+  renderTags();
+  guncelleToplam();
+}
+
+function renderTags() {
+  document.getElementById('tags').innerHTML = secilen.map((u, i) =>
+    `<span class="tag">${u.ad} — ${u.fiyat.toLocaleString('tr-TR')} ₺
+      <button onclick="kaldir(${i})" aria-label="Kaldır">×</button>
+    </span>`
+  ).join('');
+}
+
+function guncelleToplam() {
+  const miktar = parseInt(document.getElementById('miktar').value) || 1;
+  const toplam = secilen.reduce((t, u) => t + u.fiyat, 0) * miktar;
+  const wrap = document.getElementById('toplam-wrap');
+  if (secilen.length > 0) {
+    wrap.style.display = 'flex';
+    document.getElementById('toplam').textContent = toplam.toLocaleString('tr-TR') + ' ₺';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+async function gonder() {
+  const musteri = document.getElementById('musteri').value.trim();
+  const miktar = parseInt(document.getElementById('miktar').value) || 1;
+  const not = document.getElementById('not').value.trim();
+
+  if (!musteri) { alert('Lütfen müşteri adını girin.'); return; }
+  if (secilen.length === 0) { alert('En az bir ürün seçin.'); return; }
+
+  const toplam = secilen.reduce((t, u) => t + u.fiyat, 0) * miktar;
+  const tarih = new Date().toLocaleDateString('tr-TR');
+  const urunListesi = secilen.map(u => u.ad).join(', ');
+
+  const veri = {
+    tarih,
+    musteri,
+    urunler: urunListesi,
+    miktar,
+    birimFiyat: secilen.reduce((t, u) => t + u.fiyat, 0),
+    toplam,
+    not
+  };
+
+  const btn = document.getElementById('gonder-btn');
+  btn.textContent = 'Gönderiliyor...';
+  btn.disabled = true;
+
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(veri),
+      mode: 'no-cors'
+    });
+  } catch(e) {
+    console.log('Webhook hatası:', e);
+  }
+
+  document.getElementById('ozet').innerHTML =
+    `<strong>Müşteri:</strong> ${musteri}<br>` +
+    `<strong>Ürünler:</strong> ${urunListesi}<br>` +
+    `<strong>Miktar:</strong> ${miktar} adet<br>` +
+    `<strong>Toplam:</strong> ${toplam.toLocaleString('tr-TR')} ₺<br>` +
+    (not ? `<strong>Not:</strong> ${not}` : '');
+
+  document.getElementById('form-view').style.display = 'none';
+  document.getElementById('success-view').style.display = 'block';
+}
+
+function yeniSiparis() {
+  secilen = [];
+  document.getElementById('musteri').value = '';
+  document.getElementById('miktar').value = '1';
+  document.getElementById('not').value = '';
+  renderTags();
+  guncelleToplam();
+  document.getElementById('form-view').style.display = 'block';
+  document.getElementById('success-view').style.display = 'none';
+}
+</script>
+</body>
+</html>
+HTMLEOF
+echo "Dosya oluşturuldu"
+Output
+
+Dosya oluşturuldu
